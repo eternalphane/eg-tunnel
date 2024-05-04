@@ -14,7 +14,7 @@ let พร็อกซีไอพี = พร็อกซีไอพีs[Math.
 // ipv6 พร็อกซีไอพี example remove comment to use
 // let พร็อกซีไอพี = "[2a01:4f8:c2c:123f:64:5:6810:c55a]"
 
-let dohURL = 'https://sky.rethinkdns.com/1:-Pf_____9_8A_AMAIgE8kMABVDDmKOHTAKg='; // https://cloudflare-dns.com/dns-query or https://dns.google/dns-query
+let dohURLs = ['https://max.rethinkdns.com/1:-Pf_____9_8A_AMAIgE8kMABVDDmKOHTAKg=']; // https://cloudflare-dns.com/dns-query or https://dns.google/dns-query
 
 if (!isValidUUID(userID)) {
 	throw new Error('uuid is invalid');
@@ -32,7 +32,7 @@ export default {
 		try {
 			userID = env.UUID || userID;
 			พร็อกซีไอพี = env.พร็อกซีไอพี || พร็อกซีไอพี;
-			dohURL = env.DNS_RESOLVER_URL || dohURL;
+			dohURLs = env.DNS_RESOLVER_URLS?.split(',') ?? dohURLs;
 			let userID_Path = userID;
 			if (userID.includes(',')) {
 				userID_Path = userID.split(',')[0];
@@ -650,14 +650,13 @@ async function handleUDPOutBound(webSocket, วเลสResponseHeader, log) {
 	// only handle dns udp for now
 	transformStream.readable.pipeTo(new WritableStream({
 		async write(chunk) {
-			const resp = await fetch(dohURL, // dns server url
-				{
-					method: 'POST',
-					headers: {
-						'content-type': 'application/dns-message',
-					},
-					body: chunk,
-				})
+			const resp = await Promise.race(dohURLs.map((dohURL) => fetch(dohURL, { // dns server url
+				method: 'POST',
+				headers: {
+					'content-type': 'application/dns-message',
+				},
+				body: chunk,
+			})));
 			const dnsQueryResult = await resp.arrayBuffer();
 			const udpSize = dnsQueryResult.byteLength;
 			// console.log([...new Uint8Array(dnsQueryResult)].map((x) => x.toString(16)));
